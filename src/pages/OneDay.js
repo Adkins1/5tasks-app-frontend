@@ -3,65 +3,72 @@ import axios from 'axios';
 import '../assets/oneDay.css'; // opcjonalnie można dodać stylizację w osobnym pliku CSS
 
 const OneDay = () => {
+  const apiUrl = process.env.REACT_APP_API_URL;
+  const protocol = process.env.REACT_APP_PROTOCOL;
+
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10)); // data w formacie YYYY-MM-DD
   const [tasks, setTasks] = useState([]);
+  const [taskId, setTaskId] = useState(null); // Zmienna do przechowywania ID zadania, jeśli istnieje
 
-  // Funkcja do pobierania zadań na podstawie daty
   const fetchTasks = async (selectedDate) => {
     try {
-      const response = await axios.get(`http://localhost:3001/api/task/date/${selectedDate}`);
-      
-      // Sprawdzanie, czy otrzymano dane
+      const response = await axios.get(`${protocol}://${apiUrl}/task/date/${selectedDate}`);
       if (response.data.length > 0) {
-        const tasksFromDb = response.data[0].tasks; // Zakładamy, że dane przychodzą w postaci tablicy z jednym obiektem
-        setTasks(tasksFromDb);
+        const dbtasks = response.data[0].tasks
+        const dbdata = response.data[0]
+        setTasks(dbtasks)
+        setTaskId(dbdata.id)
+        console.log(dbdata.id)
       } else {
-        // Jeśli nie ma zadań, wypełnij domyślnymi wartościami
         setTasks([
           { id: 1, text: '', completed: false },
           { id: 2, text: '', completed: false },
           { id: 3, text: '', completed: false },
           { id: 4, text: '', completed: false },
-          { id: 5, text: '', completed: false },
+          { id: 5, text: '', completed: false }, 
         ]);
+        setTaskId(null);
       }
     } catch (error) {
       console.error('Błąd podczas pobierania zadań:', error);
     }
   };
 
-  // Funkcja do obsługi zmiany tekstu zadania
   const handleTextChange = (id, newText) => {
     setTasks(tasks.map(task => 
       task.id === id ? { ...task, text: newText } : task
     ));
   };
 
-  // Funkcja do obsługi zmiany statusu (checkbox)
   const handleStatusChange = (id) => {
     setTasks(tasks.map(task => 
       task.id === id ? { ...task, completed: !task.completed } : task
     ));
   };
 
-  // Funkcja obsługująca zmianę daty za pomocą inputa typu "date"
   const handleDateChange = (e) => {
-    const newDate = e.target.value; // uzywaj wartości jako stringa w formacie YYYY-MM-DD
+    const newDate = e.target.value;
     setDate(newDate);
-    fetchTasks(newDate); // przekazanie sformatowanej daty
+    fetchTasks(newDate); 
   };
 
-  // Funkcja do przesłania danych do DB
   const handleSave = async () => {
     const taskData = {
       tasks: tasks,
-      date: date, // użyj daty w formacie YYYY-MM-DD
-      userId: null, // lub inny użytkownik, jeśli wprowadzisz logowanie
+      date: date,
+      userId: null, // TODO userId do podmiany
     };
   
     try {
-      await axios.post('http://localhost:3001/api/task', taskData);
-      // Dodatkowa logika po zapisie
+      if (taskId) {
+        // Jeśli istnieje ID, zaktualizuj istniejący rekord
+        await axios.put(`${protocol}://${apiUrl}/task/${taskId}`, taskData);
+      } else {
+        // Jeśli nie istnieje ID, utwórz nowy rekord
+        console.log(`${protocol}://${apiUrl}/task`)
+        await axios.post(`${protocol}://${apiUrl}/task`, taskData);
+      }
+      console.log('Zadania zapisane pomyślnie');
     } catch (error) {
       console.error('Błąd podczas zapisywania zadań:', error);
     }
@@ -70,8 +77,6 @@ const OneDay = () => {
   return (
     <div>
       <h1>1 Day</h1>
-
-      {/* Formularz do zmiany daty przy użyciu wbudowanego pola "date" */}
       <div>
         <label htmlFor="date-picker">Wybierz datę:</label>
         <input 
